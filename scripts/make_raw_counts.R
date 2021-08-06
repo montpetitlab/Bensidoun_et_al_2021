@@ -9,7 +9,7 @@ files <- unlist(snakemake@input)
 raw_counts <- files %>%
   purrr::set_names() %>% 
   map_dfr(function(x) read_tsv(x, col_names = c("gene", "count")), .id = "sample") %>%
-  mutate(sample = gsub("outputs_5mil\\/htseq\\/", "", sample)) %>%
+  mutate(sample = gsub("outputs\\/htseq\\/", "", sample)) %>%
   mutate(sample = gsub("_readcounts.txt", "", sample)) %>%
   pivot_wider(id_cols = gene, names_from = sample, values_from = count)
 
