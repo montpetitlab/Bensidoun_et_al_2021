@@ -13,7 +13,8 @@ rule all:
         expand("outputs/kmer_counts/{sample}.txt", sample = SAMPLES),
         expand("outputs/abundtrim/{sample}.abundtrim.fq.gz", sample = SAMPLES),
         expand('outputs/star/{sample}Aligned.sortedByCoord.out.bam.bai', sample = SAMPLES),
-        "outputs/counts/raw_counts.tsv"
+        "outputs/counts/raw_counts.tsv",
+        expand('outputs/ribo/{sample}-ribo.qc.fq.gz', sample = SAMPLES)
 
 #rule subsample_tolion_reads:
 #    input: "{sample}.trimmed.fq.gz"
@@ -80,6 +81,22 @@ rule counts_kmers:
     conda: "envs/khmer.yml"
     shell:'''
     count-median.py {input.graph} {input.reads} {output}
+    '''
+
+#################################
+## check ribo
+#################################
+
+rule bbduk_find_ribo:
+    output:
+        ribo='outputs/ribo/{sample}-ribo.qc.fq.gz',
+        nonribo='outputs/ribo/{sample}-nonribo.qc.fq.gz'
+    input: 
+        reads='{sample}.trimmed.fq.gz',
+        ribo='inputs/ribokmers.fa.gz'
+    conda: 'bbmap.yml'
+    shell:'''
+    bbduk.sh -Xmx4g in={input.reads} outm={output.ribo} outu={output.nonribo} k=31 ref={input.ribo}
     '''
 
 #################################
