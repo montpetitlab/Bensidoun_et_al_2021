@@ -15,18 +15,18 @@ rule all:
         expand('outputs/star/{sample}Aligned.sortedByCoord.out.bam.bai', sample = SAMPLES),
         "outputs/counts/raw_counts.tsv"
 
-rule subsample_tolion_reads:
-    input: "{sample}.trimmed.fq.gz"
-    output: "outputs/subsampled/{sample}.trimmed.fq.gz"
-    conda: "envs/bbmap.yml"
-    shell:'''
-    reformat.sh in={input} out={output} samplereadstarget=5000000
-    #seqtk sample -s100 {input} 5000000 > {output}
-    #zcat {input} | head -n 20000000 | gzip > {output} 
-    '''
+#rule subsample_tolion_reads:
+#    input: "{sample}.trimmed.fq.gz"
+#    output: "outputs/subsampled/{sample}.trimmed.fq.gz"
+#    conda: "envs/bbmap.yml"
+#    shell:'''
+#    reformat.sh in={input} out={output} samplereadstarget=5000000
+#    #seqtk sample -s100 {input} 5000000 > {output}
+#    #zcat {input} | head -n 20000000 | gzip > {output} 
+#    '''
 
 rule fastqc:
-    input: "outputs/subsampled/{sample}.trimmed.fq.gz"
+    input: "{sample}.trimmed.fq.gz"
     output: 
         "outputs/fastqc_trimmed/{sample}.trimmed_fastqc.html",
         "outputs/fastqc_trimmed/{sample}.trimmed_fastqc.zip"
@@ -36,7 +36,7 @@ rule fastqc:
     '''
 
 rule fastp_trimmed_reads:
-    input: "outputs/subsampled/{sample}.trimmed.fq.gz"
+    input: "{sample}.trimmed.fq.gz"
     output: 
         json="outputs/fastp_trimmed/{sample}.trimmed.fastp.json",
         html="outputs/fastp_trimmed/{sample}.trimmed.fastp.html",
@@ -57,7 +57,7 @@ rule multiqc_fastp_trimmed:
     '''
 
 rule kmer_trim_reads:
-    input: "outputs/subsampled/{sample}.trimmed.fq.gz"
+    input: "{sample}.trimmed.fq.gz"
     output: "outputs/abundtrim/{sample}.abundtrim.fq.gz"
     conda: "envs/khmer.yml"
     shell:'''
@@ -121,7 +121,7 @@ rule star_index_genome:
     '''
 
 rule gunzip_reads:
-    input: "outputs/subsampled/{sample}.trimmed.fq.gz"
+    input: "{sample}.trimmed.fq.gz"
     output: 'outputs/gunzipped/{sample}.trimmed.fq'
     shell:'''
     gunzip -c {input} > {output}
