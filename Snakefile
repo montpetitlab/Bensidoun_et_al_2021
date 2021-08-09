@@ -14,7 +14,9 @@ rule all:
         expand("outputs/abundtrim/{sample}.abundtrim.fq.gz", sample = SAMPLES),
         expand('outputs/star/{sample}Aligned.sortedByCoord.out.bam.bai', sample = SAMPLES),
         "outputs/counts/raw_counts.tsv",
-        expand('outputs/ribo/{sample}-ribo.qc.fq.gz', sample = SAMPLES)
+        expand('outputs/fastp_ribo/{sample}-ribo.fastp.json', sample = SAMPLES),
+        expand('outputs/fastp_ribo/{sample}-nonribo.fastp.json', sample = SAMPLES),
+        "outputs/star/multiqc_report.html"
 
 #rule subsample_tolion_reads:
 #    input: "{sample}.trimmed.fq.gz"
@@ -94,11 +96,32 @@ rule bbduk_find_ribo:
     input: 
         reads='{sample}.trimmed.fq.gz',
         ribo='inputs/ribokmers.fa.gz'
-    conda: 'bbmap.yml'
+    conda: 'envs/bbmap.yml'
     shell:'''
     bbduk.sh -Xmx4g in={input.reads} outm={output.ribo} outu={output.nonribo} k=31 ref={input.ribo}
     '''
 
+rule fastp_ribo_reads:
+    input: 
+        ribo='outputs/ribo/{sample}-ribo.qc.fq.gz',
+    output: 
+        json="outputs/fastp_ribo/{sample}-ribo.fastp.json",
+        html="outputs/fastp_ribo/{sample}-ribo.fastp.html",
+    conda: "envs/fastp.yml"
+    shell:'''
+    fastp -i {input} -j {output.json} -h {output.html}
+    '''
+
+rule fastp_nonribo_reads:
+    input: 
+        nonribo='outputs/ribo/{sample}-nonribo.qc.fq.gz'
+    output: 
+        json="outputs/fastp_ribo/{sample}-nonribo.fastp.json",
+        html="outputs/fastp_ribo/{sample}-nonribo.fastp.html",
+    conda: "envs/fastp.yml"
+    shell:'''
+    fastp -i {input} -j {output.json} -h {output.html}
+    '''
 #################################
 ## map and count
 #################################
@@ -172,7 +195,26 @@ rule index_bam:
     shell:'''
     samtools index {input}
     '''
-    
+
+rule flagstat_bam:
+    input: 'outputs/star/{sample}Aligned.sortedByCoord.out.bam'
+    output: 'outputs/star/{sample}Aligned.sortedByCoord.out.bam.flagstat'
+    conda: 'envs/samtools.yml'
+    shell:'''
+    samtools flagstat {input} > {output}
+    '''
+
+rule multiqc_flagstat:
+    input: expand('outputs/star/{sample}Aligned.sortedByCoord.out.bam.flagstat', sample=SAMPLES)
+    output: "outputs/star/multiqc_report.html"
+    params: 
+        indir = "outputs/star",
+        outdir = "outputs/star"
+    conda: "envs/multiqc.yml"
+    shell:'''
+    multiqc {params.indir} -o {params.outdir} 
+    '''
+
 rule htseq_count:
     input:
         bam = 'outputs/star/{sample}Aligned.sortedByCoord.out.bam',
