@@ -8,44 +8,49 @@ SAMPLES=['AP_A_replicat1', 'AP_A_replicat2', 'AP_A_replicat3',
 
 rule all:
     input: 
-        expand("outputs/fastqc_trimmed/{sample}.trimmed_fastqc.html", sample = SAMPLES),
         "outputs/fastp_trimmed/multiqc_report.html",
-        expand("outputs/kmer_counts/{sample}.txt", sample = SAMPLES),
-        expand("outputs/abundtrim/{sample}.abundtrim.fq.gz", sample = SAMPLES),
         expand('outputs/star/{sample}Aligned.sortedByCoord.out.bam.bai', sample = SAMPLES),
         "outputs/counts/raw_counts.tsv",
-        expand('outputs/fastp_ribo/{sample}-ribo.fastp.json', sample = SAMPLES),
-        expand('outputs/fastp_ribo/{sample}-nonribo.fastp.json', sample = SAMPLES),
+        "outputs/fastp_ribo/multiqc_report.html",
         "outputs/star/multiqc_report.html"
 
-#rule subsample_tolion_reads:
-#    input: "{sample}.trimmed.fq.gz"
-#    output: "outputs/subsampled/{sample}.trimmed.fq.gz"
-#    conda: "envs/bbmap.yml"
-#    shell:'''
-#    reformat.sh in={input} out={output} samplereadstarget=5000000
-#    #seqtk sample -s100 {input} 5000000 > {output}
-#    #zcat {input} | head -n 20000000 | gzip > {output} 
-#    '''
-
-rule fastqc:
+rule separate_R1:
     input: "{sample}.trimmed.fq.gz"
-    output: 
-        "outputs/fastqc_trimmed/{sample}.trimmed_fastqc.html",
-        "outputs/fastqc_trimmed/{sample}.trimmed_fastqc.zip"
-    conda: "envs/fastqc.yml"
+    output: "outputs/separated/{sample}_R1.trimmed.fq"
     shell:'''
-    fastqc -o outputs/fastqc_trimmed {input}
+    zcat {input} | grep -A 3 "1:N:0:" > {output}    
+    '''
+
+rule separate_R2:
+    input: "{sample}.trimmed.fq.gz"
+    output: "outputs/separated/{sample}_R2.trimmed.fq"
+    shell:'''
+    zcat {input} | grep -A 3 "2:N:0:" > {output}    
+    '''
+
+rule repair_trimmed_reads:
+    input:
+        R1="outputs/separated/{sample}_R1.trimmed.fq",
+        R2="outputs/separated/{sample}_R2.trimmed.fq"
+    output:
+        R1="outputs/repair/{sample}_R1.trimmed.fq",
+        R2="outputs/repair/{sample}_R2.trimmed.fq",
+        singletons="outputs/repair/{sample}_singleton.fq"
+    conda:"envs/bbmap.yml"
+    shell:'''
+    repair.sh in1={input.R1} in2={input.R2} out1={output.R1} out2={output.R2} outs={output.singletons} repair
     '''
 
 rule fastp_trimmed_reads:
-    input: "{sample}.trimmed.fq.gz"
+    input:
+        R1= "outputs/repair/{sample}_R1.trimmed.fq",
+        R2= "outputs/repair/{sample}_R2.trimmed.fq"
     output: 
         json="outputs/fastp_trimmed/{sample}.trimmed.fastp.json",
         html="outputs/fastp_trimmed/{sample}.trimmed.fastp.html",
     conda: "envs/fastp.yml"
     shell:'''
-    fastp -i {input} -j {output.json} -h {output.html}
+    fastp -i {input.R1} -I {input.R2} -j {output.json} -h {output.html}
     '''
 
 rule multiqc_fastp_trimmed:
@@ -59,69 +64,48 @@ rule multiqc_fastp_trimmed:
     multiqc {params.indir} -o {params.outdir} 
     '''
 
-rule kmer_trim_reads:
-    input: "{sample}.trimmed.fq.gz"
-    output: "outputs/abundtrim/{sample}.abundtrim.fq.gz"
-    conda: "envs/khmer.yml"
-    shell:'''
-    trim-low-abund.py --gzip -C 3 -Z 18 -M 16e9 -V {input} -o {output}
-    '''
-
-rule kmer_countgraph:
-    input: "outputs/abundtrim/{sample}.abundtrim.fq.gz"
-    output: "outputs/kmer_counts/{sample}_countgraph"
-    conda: "envs/khmer.yml"
-    shell:'''
-    load-into-counting.py {output} {input}
-    '''
-
-rule counts_kmers:
-    input: 
-        graph="outputs/kmer_counts/{sample}_countgraph",
-        reads="outputs/abundtrim/{sample}.abundtrim.fq.gz"
-    output: "outputs/kmer_counts/{sample}.txt"
-    conda: "envs/khmer.yml"
-    shell:'''
-    count-median.py {input.graph} {input.reads} {output}
-    '''
-
 #################################
 ## check ribo
 #################################
 
 rule bbduk_find_ribo:
     output:
-        ribo='outputs/ribo/{sample}-ribo.qc.fq.gz',
-        nonribo='outputs/ribo/{sample}-nonribo.qc.fq.gz'
+        ribo_R1='outputs/ribo/{sample}_ribo_R1.trimmed.fq',
+        ribo_R2='outputs/ribo/{sample}_ribo_R2.trimmed.fq',
     input: 
-        reads='{sample}.trimmed.fq.gz',
+        R1= "outputs/repair/{sample}_R1.trimmed.fq",
+        R2= "outputs/repair/{sample}_R2.trimmed.fq",
         ribo='inputs/ribokmers.fa.gz'
     conda: 'envs/bbmap.yml'
     shell:'''
-    bbduk.sh -Xmx4g in={input.reads} outm={output.ribo} outu={output.nonribo} k=31 ref={input.ribo}
+    bbduk.sh -Xmx4g in={input.R1} in2={input.R2} \
+        outm={output.ribo_R1} outm2={output.ribo_R2} \ 
+        k=31 ref={input.ribo}
     '''
 
 rule fastp_ribo_reads:
     input: 
-        ribo='outputs/ribo/{sample}-ribo.qc.fq.gz',
+        R1='outputs/ribo/{sample}_ribo_R1.trimmed.fq',
+        R2='outputs/ribo/{sample}_ribo_R2.trimmed.fq',
     output: 
-        json="outputs/fastp_ribo/{sample}-ribo.fastp.json",
-        html="outputs/fastp_ribo/{sample}-ribo.fastp.html",
+        json="outputs/fastp_ribo/{sample}_ribo.fastp.json",
+        html="outputs/fastp_ribo/{sample}_ribo.fastp.html",
     conda: "envs/fastp.yml"
     shell:'''
-    fastp -i {input} -j {output.json} -h {output.html}
+    fastp -i {input.R1} -I {input.R2} -j {output.json} -h {output.html}
     '''
 
-rule fastp_nonribo_reads:
-    input: 
-        nonribo='outputs/ribo/{sample}-nonribo.qc.fq.gz'
-    output: 
-        json="outputs/fastp_ribo/{sample}-nonribo.fastp.json",
-        html="outputs/fastp_ribo/{sample}-nonribo.fastp.html",
-    conda: "envs/fastp.yml"
+rule multiqc_fastp_ribo:
+    input: expand("outputs/fastp_ribo/{sample}_ribo.fastp.json", sample=SAMPLES)
+    output: "outputs/fastp_ribo/multiqc_report.html"
+    params: 
+        indir = "outputs/fastp_ribo",
+        outdir = "outputs/fastp_ribo"
+    conda: "envs/multiqc.yml"
     shell:'''
-    fastp -i {input} -j {output.json} -h {output.html}
+    multiqc {params.indir} -o {params.outdir} 
     '''
+
 #################################
 ## map and count
 #################################
@@ -160,31 +144,21 @@ rule star_index_genome:
          --genomeFastaFiles {input.genome} --sjdbGTFfile {input.gtf} --sjdbOverhang  99
     '''
 
-rule gunzip_reads:
-    input: "{sample}.trimmed.fq.gz"
-    output: 'outputs/gunzipped/{sample}.trimmed.fq'
-    shell:'''
-    gunzip -c {input} > {output}
-    '''
-
 rule star_align:
     #v2.5.2a
     input:
-        reads = 'outputs/gunzipped/{sample}.trimmed.fq',
+        R1= "outputs/repair/{sample}_R1.trimmed.fq",
+        R2= "outputs/repair/{sample}_R2.trimmed.fq",
         genome_index = 'inputs/genome/SAindex'
     output: 'outputs/star/{sample}Aligned.sortedByCoord.out.bam' 
     params: 
         out_prefix = lambda wildcards: 'outputs/star/' + wildcards.sample,
         genome_dir = 'inputs/genome'
     conda: 'envs/star.yml'
+    threads: 2
     shell:'''
-    STAR --runThreadN 2 --genomeDir {params.genome_dir}      \
-        --readFilesIn {input.reads} --outFilterType BySJout  \
-        --outFilterMultimapNmax 20 --alignSJoverhangMin 8    \
-        --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 \
-        --outFilterMismatchNoverLmax 0.6 --alignIntronMin 20 \
-        --alignIntronMax 1000000 --alignMatesGapMax 1000000  \
-        --outSAMattributes NH HI NM MD --outSAMtype BAM      \
+    STAR --runThreadN {threads} --genomeDir {params.genome_dir}      \
+        --readFilesIn {input.R1} {input.R2} --outSAMtype BAM \
         SortedByCoordinate --outFileNamePrefix {params.out_prefix}
     '''
 
@@ -222,7 +196,7 @@ rule htseq_count:
     output: "outputs/htseq/{sample}_readcounts.txt"
     conda: "envs/htseq.yml"
     shell:'''
-    htseq-count -m intersection-nonempty -s yes -f bam -r pos {input.bam} {input.gtf} > {output}
+    htseq-count -m intersection-nonempty -s yes -f bam -r pos --stranded=reverse {input.bam} {input.gtf} > {output}
     '''
 
 rule make_counts:
