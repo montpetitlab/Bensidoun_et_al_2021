@@ -9,7 +9,7 @@ library(ggpubr)
 library(xlsx)
 library(rtracklayer)
 library(ggpmisc)
-setwd("~/projects/2021_bensidoun/")
+setwd("~/github/2021-bensidoun/")
 # functions ---------------------------------------------------------------
 
 orf_to_common <- function(keys){
