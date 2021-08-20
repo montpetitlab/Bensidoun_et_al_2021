@@ -9,6 +9,8 @@ library(xlsx)
 library(rtracklayer)
 library(ggpmisc)
 library(ggpubr)
+library(broom)
+
 #library(clusterProfiler)
 
 setwd("~/github/2021-bensidoun/")
@@ -186,12 +188,17 @@ res_total_ngbp %>%
 up_nsb <- fromList(list("total" = filter(res_total_ngbp, log2FoldChange > 1)$gene,
                         'basket' = filter(res_basket_nigg, log2FoldChange > 1)$gene,
                         'basketless' = filter(res_basketless_ngbp, log2FoldChange > 1)$gene))
-upset(up_nsb, nsets = 3)
+pdf("tmp_up_nsb_upset.pdf", width = 5, 2.5)
+upset(up_nsb, nsets = 3, set_size.show = T, set_size.scale_max = 1800)
+dev.off()
 
 down_nsb <-  fromList(list("total" = filter(res_total_ngbp, log2FoldChange < -1)$gene,
                            'basket' = filter(res_basket_nigg, log2FoldChange < -1)$gene,
                            'basketless' = filter(res_basketless_ngbp, log2FoldChange < -1)$gene))
-upset(down_nsb, nsets = 3)
+pdf("tmp_down_nsb_upset.pdf", width = 5, 2.5)
+upset(down_nsb, nsets = 3, set_size.show = T, set_size.scale_max = 1800)
+dev.off()
+
 
 # separate genes from 7 permutations, no specific background -------------------
 fromList2 <- function (input) {
@@ -318,6 +325,30 @@ features <- features %>%
 features <- features %>%
   dplyr::select(gene_id, width, strand, pseudo, introns)
 
+norm_dds <- estimateSizeFactors(dds)
+norm_counts <- DESeq2::counts(norm_dds, normalized=T)
+polya_counts <- norm_counts %>%
+  as.data.frame() %>%
+  rownames_to_column("gene") %>%
+  select(gene, starts_with("AP_G")) %>%
+  rowwise() %>% 
+  mutate(mean_polya = mean(c(AP_G_replicat1, AP_G_replicat2, AP_G_replicat3))) %>%
+  select(gene, mean_polya)
+
+vsd <- vst(dds)
+vsd <- assay(vsd)
+polya_vsd <- vsd %>%
+  as.data.frame() %>%
+  rownames_to_column("gene") %>%
+  select(gene, starts_with("AP_G")) %>%
+  rowwise() %>% 
+  mutate(mean_polya_vst = mean(c(AP_G_replicat1, AP_G_replicat2, AP_G_replicat3))) %>%
+  select(gene, mean_polya_vst)
+
+features <- features %>%
+  left_join(polya_counts, by = c("gene_id" = "gene")) %>%
+  left_join(polya_vsd, by = c("gene_id" = "gene"))
+
 # format for and perform stats
 # lm() -- probably not the best test to do
 # wilcox.test() -- wilcoxon rank sum test. Is mean gene length different
@@ -425,82 +456,42 @@ lm_eqn <- function(df){
 
 my_formula <- y ~ x
 
-ggplot(res_total_features, aes(x = width, y = log2FoldChange, color = introns)) +
-  geom_point(alpha = 1/10) +
-  theme_minimal() +
-  geom_smooth(method='lm', formula= my_formula, se = F) +
-  stat_poly_eq(formula = my_formula, 
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-               parse = TRUE) +
-  ggtitle("Total - GFP") 
 
-ggplot(res_basket_features, aes(x = width, y = log2FoldChange, color = introns)) +
-  geom_point(alpha = 1/10) +
-  theme_minimal() +
-  geom_smooth(method='lm', formula= my_formula, se = F, color = "black") +
-  stat_poly_eq(formula = my_formula, 
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-               parse = TRUE) +
-  ggtitle("Basket - IgG")
-
-ggplot(res_gbp_features, aes(x = width, y = log2FoldChange)) +
-  geom_point(alpha = 1/10) +
-  theme_minimal() +
-  geom_smooth(method='lm', formula= my_formula, se = F, color = "black") +
-  stat_poly_eq(formula = my_formula, 
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-               parse = TRUE) +
-  ggtitle("GFP")
-
-ggplot(res_igg_features, aes(x = width, y = log2FoldChange)) +
-  geom_point(alpha = 1/10) +
-  theme_minimal() +
-  geom_smooth(method='lm', formula= my_formula, se = F, color = "black") +
-  stat_poly_eq(formula = my_formula, 
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-               parse = TRUE) +
-  ggtitle("IgG")
-
-ggplot(res_basketless_features, aes(x = width, y = log2FoldChange, color = introns)) +
-  geom_point(alpha = 1/10) +
-  theme_minimal() +
-  geom_smooth(method='lm', formula= my_formula, se = F, color = "black") +
-  stat_poly_eq(formula = my_formula, 
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-               parse = TRUE) +
-  ggtitle("Basketless - GFP")
-
-
-plt1 <- ggplot(res_basketless_features, aes(x = width, fill = change)) +
-  geom_density(alpha = .5) +
+plt1 <- ggplot(res_basketless_features, aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="grey") +
   theme_minimal() +
   ggtitle("Basketless - GFP")+ 
   xlim(0, 15000) +
   ylim(0, 0.0015)
 
-plt2 <- ggplot(res_total_features, aes(x = width, fill = change)) +
-  geom_density(alpha = .5) +
+plt2 <- ggplot(res_total_features, aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="grey") +
   theme_minimal() +
   ggtitle("Total - GFP")+ 
   xlim(0, 15000) +
   ylim(0, 0.0015)
 
-plt3 <- ggplot(res_basket_features, aes(x = width, fill = change)) +
-  geom_density(alpha = .5) +
+plt3 <- ggplot(res_basket_features, aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="grey") +
   theme_minimal() +
   ggtitle("Basket - IgG")+ 
   xlim(0, 15000) +
   ylim(0, 0.0015)
 
-plt4 <- ggplot(res_igg_features, aes(x = width, fill = change)) +
-  geom_density(alpha = .5) +
+plt4 <- ggplot(res_igg_features, aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="grey") +
   theme_minimal() +
   ggtitle("IgG")+ 
   xlim(0, 15000) +
   ylim(0, 0.0015)
 
-plt5 <- ggplot(res_gbp_features, aes(x = width, fill = change)) +
-  geom_density(alpha = .5) +
+plt5 <- ggplot(res_gbp_features, aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="grey") +
   theme_minimal() +
   ggtitle("GFP") + 
   xlim(0, 15000) +
@@ -561,3 +552,168 @@ ggarrange2 <- ggarrange(plt4, plt5, common.legend = T, nrow =2,
                         legend = "bottom")
 
 ggarrange(ggarrange1, ggarrange2, ncol = 2, common.legend = T)
+
+
+# exploring some more. -----------------------------------------------
+
+# FOR THINGS THAT ARE SIGNIFCANTLY ASSOCIATED WITH BASKET AND BASKETLESS,
+# ARE THEY MORE LIKELY TO BE ASSOCIATED WITH BASKET THAN BASKETLESS? -----------
+# Yes, on average, the l2fc is 1.2 lower for basketless
+
+res_basket_nigg_shared <- res_basket_nigg %>%
+  filter(gene %in% c(total_basketless_basket_nsb_up$gene, basket_basketless_nsb_up$gene)) %>%
+  mutate(ap = "basket") 
+
+res_basketless_ngbp_shared <- res_basketless_ngbp %>%
+  filter(gene %in% c(total_basketless_basket_nsb_up$gene, basket_basketless_nsb_up$gene)) %>%
+  mutate(ap = "basketless")
+
+shared_up <- left_join(res_basket_nigg_shared, res_basketless_ngbp_shared, by = c("gene", "baseMean", "common", "description"))
+
+ggplot(shared_up, aes(x = log2FoldChange.x, y = log2FoldChange.y, label = common)) +
+  geom_point(alpha = .1) +
+  geom_abline(slope = 1, intercept = 0) +
+  theme_minimal() +
+  theme(plot.title.position =  "plot",
+        plot.title =element_text(size = 9)) +
+  ylim(1, 5) +
+  labs(x = "log2FC basket", y = "log2FC basketless", title = "Basket + Basketless (n = 3 + 436)")
+
+t.test(x = shared$log2FoldChange.x, y = shared$log2FoldChange.y, paired = T)
+
+
+res_basket_nigg_shared <- res_basket_nigg %>%
+  filter(gene %in% c(total_basketless_basket_nsb_down$gene, basket_basketless_nsb_down$gene)) %>%
+  mutate(ap = "basket") 
+
+res_basketless_ngbp_shared <- res_basketless_ngbp %>%
+  filter(gene %in% c(total_basketless_basket_nsb_down$gene, basket_basketless_nsb_down$gene)) %>%
+  mutate(ap = "basketless")
+
+shared_down <- left_join(res_basket_nigg_shared, res_basketless_ngbp_shared, by = c("gene", "baseMean", "common", "description"))
+
+ggplot(shared_down, aes(x = log2FoldChange.x, y = log2FoldChange.y, label = common)) +
+  geom_point(alpha = .1) +
+  geom_abline(slope = 1, intercept = 0) +
+  theme_minimal() +
+  theme(plot.title.position =  "plot",
+        plot.title =element_text(size = 9)) +
+  ylim(-6, -1) +
+  labs(x = "log2FC basket", y = "log2FC basketless", title = "Basket + Basketless (n = 43 + 459)")
+
+# WHAT DIFFERENTIATES THESE GENES? WHAT FEATURES MAKE A GENE MORE LIKELY TO END 
+# UP IN A PORE, OR IN A BASKET OR BASKETLESS PORE? -----------------------
+
+# sets -- anything that's more likely to be in basketless vs anything thanks only
+# in basket.
+# basketless = 5 + 40 + 3 + 436
+# basket = 746
+
+
+# EXPRESSION ------
+
+# it looks like transcripts that are more likely to be in basketless are 
+# intron-less and highly expressed
+# The opposite is true for transcripts that are only significantly enriched in basket 
+
+ggplot(res_basketless_features, aes(x = log2FoldChange, y = mean_polya_vst, color = introns)) +
+  geom_point(alpha = 0.25)
+
+
+# stats
+plt1_exp <- ggplot(res_basketless_features %>%
+         filter(introns == "no"), 
+       aes(x = mean_polya_vst, fill = change)) +
+  geom_density(alpha = .5) +
+  theme_minimal()+
+  theme_minimal() +
+  theme(plot.title = element_text(size = 9),
+        plot.title.position = "plot") +
+  labs(title = "Basketless (n = 5 + 40 + 3 + 436 +\n30 + 71 + 43 + 459)",
+       x = "mean VST count in poly(A) library")
+
+res_basketless_features %>%
+  filter(introns == "no") %>%
+  group_by(change) %>%
+  summarize(mean_mean_polya_vst = mean(mean_polya_vst))
+
+res_basketless_features %>%
+  group_by(introns, change) %>% 
+  summarise(mean_polya_vst = mean(mean_polya_vst),
+            mean_polya_counts = mean(mean_polya))
+
+res_basketless_features %>% 
+  group_by(introns) %>% 
+  do(tidy(t.test(mean_polya_vst ~ change, data = .)))
+
+## Look at distinctly enriched in basket
+ggplot(res_basket_features %>%
+         filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)), 
+       aes(x = log2FoldChange, y = mean_polya_vst, color = introns)) +
+  geom_point(alpha = 0.25) 
+
+plt2_exp <- ggplot(res_basket_features %>%
+         filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)) %>%
+         filter(introns == "no"), 
+       aes(x = mean_polya_vst, fill = change)) +
+  geom_density(alpha = 0.5) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 9),
+        plot.title.position = "plot") +
+  labs(title = "Basket (n = 746 + 743)", 
+       x = "mean VST count in poly(A) library")
+
+res_basket_features %>%
+  filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)) %>%
+  group_by(introns) %>% 
+  do(tidy(t.test(mean_polya_vst ~ change, data = .)))
+
+res_basket_features %>%
+  filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)) %>%
+  group_by(introns, change) %>% 
+  summarise(mean_polya_vst = mean(mean_polya_vst),
+            mean_polya_counts = mean(mean_polya))
+
+ggarrange(plt2_exp, plt1_exp, common.legend = T, nrow = 1, legend = "bottom")
+
+# LENGTH ---------
+
+plt1 <- ggplot(res_basketless_features %>%
+                filter(gene %in% c(total_basketless_basket_nsb_up$gene, 
+                                   total_basketless_basket_nsb_down$gene)), 
+              aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="grey") +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  ggtitle("Basket, Basketless, All (n = 436 + 459)")+ 
+  xlim(0, 15000) +
+  ylim(0, 0.0012)
+
+plt2 <- ggplot(res_basket_features %>%
+                filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)), 
+              aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="grey") +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  ggtitle("Basket (n = 746 + 743)")+ 
+  xlim(0, 15000) +
+  ylim(0, 0.0012)
+
+plt3 <- ggplot(res_basket_features %>%
+                filter(gene %in% c(total_basket_nsb_up$gene, 
+                                   total_basket_nsb_down$gene)), 
+              aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="grey") +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  ggtitle("Basket, All (n = 194 + 172)")+ 
+  xlim(0, 15000) +
+  ylim(0, 0.0012)
+
+ggarrange(plt2, plt3, plt1, legend = "bottom", common.legend = T, nrow = 1)
