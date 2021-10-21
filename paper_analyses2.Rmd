@@ -481,6 +481,13 @@ res_basketless_features <- res_basketless_ngbp %>%
   mutate(change = ifelse(log2FoldChange > 0 , "log2fc_pos", "log2fc_neg"))
 ```
 
+```{r make_res_combined}
+res_combined_features <- bind_rows(res_basket_features, res_basketless_features, res_total_features) %>%
+  select(gene, common, description, width, strand, pseudo, introns, mean_polya, 
+         mean_polya_vst, polya_length, thalf, syn, change) %>%
+  distinct()
+```
+
 ## Length of transcripts
 
 **Question**: Does transcript length impact transcript association with NPCs?
@@ -570,6 +577,11 @@ plt5_length <- ggplot(res_gbp_features, aes(x = width)) +
 
 plt6_length <- ggtexttable(all_wilcox_length, rows = NULL, theme = ttheme(base_size = 7))
 
+plt7_length <- ggplot(features, aes(x = width)) +
+  theme_minimal() +
+  geom_density() +
+  labs(title = "transcriptome distribution", x = "transcript length")
+
 ggarrange1 <- ggarrange(plt1_length, plt2_length, plt3_length, 
                         nrow = 3, legend = "none", common.legend = T)
 ggarrange2 <- ggarrange(plt4_length, plt5_length, plt6_length,
@@ -652,10 +664,81 @@ plt3_length <- ggplot(res_basket_features %>%
   xlim(0, 15000) +
   ylim(0, 0.0012)
 
-plt4_length <- ggtexttable(all_wilcox_length2, rows = NULL, theme = ttheme(base_size = 8))
+plt4_length <- ggplot(res_combined_features, aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black") +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  ggtitle(paste0("Basket, Basketless, All (n = ",
+                 basket_nsb_up_size, " + ",
+                 total_nsb_up_size, " + ",
+                 basketless_nsb_up_size, " + ",
+                 total_basket_nsb_up_size, " + ",
+                 total_basketless_nsb_up_size, " + ",
+                 basket_basketless_nsb_up_size, " + ",
+                 total_basketless_basket_nsb_up_size, " +\n",
+                 basket_nsb_down_size, " + ",
+                 total_nsb_down_size, " + ",
+                 basketless_nsb_down_size, " + ",
+                 total_basket_nsb_down_size, " + ",
+                 total_basketless_nsb_down_size, " + ",
+                 basket_basketless_nsb_down_size, " + ",
+                 total_basketless_basket_nsb_down_size, ")")) +
+  xlim(0, 15000) +
+  ylim(0, 0.0012)
+
+plt5_length <- ggplot(res_combined_features %>%
+                        filter(!gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)),
+              aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black") +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  ggtitle(paste0("Everything except distinct basket (n = ",
+                 total_nsb_up_size, " + ",
+                 basketless_nsb_up_size, " + ",
+                 total_basket_nsb_up_size, " + ",
+                 total_basketless_nsb_up_size, " + ",
+                 basket_basketless_nsb_up_size, " + ",
+                 total_basketless_basket_nsb_up_size, " +\n",
+                 total_nsb_down_size, " + ",
+                 basketless_nsb_down_size, " + ",
+                 total_basket_nsb_down_size, " + ",
+                 total_basketless_nsb_down_size, " + ",
+                 basket_basketless_nsb_down_size, " + ",
+                 total_basketless_basket_nsb_down_size, ")")) +
+  xlim(0, 15000) +
+  ylim(0, 0.0012)
+
+plt6_length <- ggplot(res_combined_features %>%
+                        filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene,
+                                           total_basket_nsb_up$gene, total_basket_nsb_down$gene)),
+              aes(x = width)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black") +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  ggtitle(paste0("Basket, All (n = ",
+                 basket_nsb_up_size, " + ",
+                 total_basket_nsb_up_size, " + ",
+                 basket_nsb_down_size, " + ",
+                 total_basket_nsb_down_size, ")")) +
+  xlim(0, 15000) +
+  ylim(0, 0.0012)
+
+plt7_length <- ggtexttable(all_wilcox_length2, rows = NULL, theme = ttheme(base_size = 8))
   
-ggarrange(ggarrange(plt2_length, plt3_length, plt1_length, legend = "bottom", common.legend = T, nrow = 1),
-          plt4_length, nrow = 2)
+# ggarrange(ggarrange(plt2_length, plt3_length, plt1_length,
+#                     plt4_length, plt5_length, plt6_length,
+#                     legend = "bottom", common.legend = T, nrow = 3, ncol = 2),
+#           plt7_length, nrow = 2, heights = c(3, 1))
+
+ggarrange(plt2_length, plt3_length, plt1_length,
+          plt4_length, plt5_length, plt6_length,
+          legend = "bottom", common.legend = T, nrow = 3, ncol = 2)
 ```
 
 ```{r LENGTH_by_shared_set2}
@@ -831,6 +914,34 @@ plt2_intron_len <- ggplot(res_basket_features %>%
 ggarrange(plt2_intron_len, plt1_intron_len, common.legend = T, legend = "bottom")
 ```
 
+```{r INTRONS_LENGTH_regression_model}
+res_basket_features$introns2 <- ifelse(res_basket_features$introns == "yes", 1, 0)
+basket_width_intron <- lm(formula = log2FoldChange ~ width + introns2, data = res_basket_features)
+basket_width_intron <- lm(formula = log2FoldChange ~ width + introns2 + polya_length + mean_polya_vst, data = res_basket_features %>% filter(polya_length > 1), na.action = "na.omit")
+basket_width_intron %>% glance()
+basket_width_intron %>% tidy()
+
+# res_basket_features %>%
+#   select(gene, log2FoldChange, width, introns2, polya_length, mean_polya) %>%
+#   drop_na() %>%
+#   filter(polya_length > 1) %>%
+#   group_by(introns2) %>%
+#   tally()
+# 
+# res_basket_features %>%
+#   dim()
+
+res_basketless_features$introns2 <- ifelse(res_basketless_features$introns == "yes", 1, 0)
+basketless_width_intron <- lm(formula = log2FoldChange ~ width + introns2 + polya_length + mean_polya_vst, data = res_basketless_features %>% filter(polya_length > 1), na.action = "na.omit")
+basketless_width_intron %>% glance()
+basketless_width_intron %>% tidy()
+
+res_total_features$introns2 <- ifelse(res_total_features$introns == "yes", 1, 0)
+total_width_intron <- lm(formula = log2FoldChange ~ width + introns2 + polya_length + mean_polya_vst, data = res_total_features)
+total_width_intron %>% glance()
+total_width_intron %>% tidy()
+```
+
 ## Expression
 
 **Question**: Does total expression of a transcript impact association with NPCs?
@@ -848,15 +959,7 @@ Using expression in the poly(A) control library, we used variance stabilized tra
 
 Lastly, as can be seen above and from the scatter plots below, transcripts with introns are doing their own thing, so we filtered those out before performing any statistics because these transcripts are highly expressed and would likely skew comparisons. 
 
-```{r EXPRESSION_by_shared_set}
-# sets -- anything that's more likely to be in basketless vs basket only
-# basketless_nsb_up_size
-# total_basketless_nsb_up_size
-# total_basketless_basket_nsb_up_size
-# basket_basketless_nsb_up_size
-
-# EXPRESSION ------
-
+```{r EXPRESSION_by_shared_set1}
 # it looks like transcripts that are more likely to be in basketless are 
 # intron-less and highly expressed
 # The opposite is true for transcripts that are only significantly enriched in basket 
@@ -867,7 +970,7 @@ plt1_exp_scatter <- ggplot(res_basketless_features, aes(x = log2FoldChange, y = 
   theme_minimal() +
   scale_color_brewer(palette = "Set1")
 
-plt3_exp_scatter <- res_basketless_features %>%
+plt1_exp_scatter_tbl <- res_basketless_features %>%
   group_by(introns, change) %>% 
   summarise(mean_polya_vst = round(mean(mean_polya_vst), digits = 2),
             mean_polya_counts = round(mean(mean_polya), digits = 2)) %>%
@@ -881,17 +984,36 @@ plt2_exp_scatter <-  ggplot(res_basket_features %>%
   theme_minimal() +
   scale_color_brewer(palette = "Set1")
 
-plt4_exp_scatter <- res_basket_features %>%
+plt2_exp_scatter_tbl <- res_basket_features %>%
   filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)) %>%
   group_by(introns, change) %>% 
   summarise(mean_polya_vst = round(mean(mean_polya_vst), digits = 2),
             mean_polya_counts = round(mean(mean_polya), digits = 2)) %>%
    ggtexttable(rows = NULL, theme = ttheme(base_size = 8))
 
-ggarrange(plt2_exp_scatter, plt1_exp_scatter, plt3_exp_scatter,  plt4_exp_scatter,
+plt3_exp_scatter <-  ggplot(res_basket_features %>%
+         filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)), 
+       aes(x = log2FoldChange, y = mean_polya_vst, color = introns)) +
+  labs(title = "Basket", y = "mean poly(A) VST counts") +
+  geom_point(alpha = 0.25) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")
+
+plt3_exp_scatter_tbl <- res_basket_features %>%
+  filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)) %>%
+  group_by(introns, change) %>% 
+  summarise(mean_polya_vst = round(mean(mean_polya_vst), digits = 2),
+            mean_polya_counts = round(mean(mean_polya), digits = 2)) %>%
+   ggtexttable(rows = NULL, theme = ttheme(base_size = 8))
+
+
+ggarrange(plt2_exp_scatter, plt1_exp_scatter, 
+          plt2_exp_scatter_tbl,  plt1_exp_scatter_tbl,
           common.legend = T, nrow = 2, ncol = 2, legend = "bottom", heights = c(2, 1))
 
+```
 
+```{r EXPRESSION_by_shared_set2}
 # Stats
 plt1_exp <- ggplot(res_basketless_features %>%
          filter(introns == "no"), 
@@ -982,7 +1104,7 @@ plt1_polya <- ggplot(res_basketless_features %>%
                         filter(polya_length > 1), 
               aes(x = polya_length)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "grey") +
+  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black") +
   theme_minimal() +
   theme(plot.title = element_text(size=9),
         plot.title.position = "plot") +
@@ -995,7 +1117,7 @@ plt2_polya <- ggplot(res_basket_features %>%
                         filter(polya_length > 1), 
               aes(x = polya_length)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "grey") +
+  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black") +
   theme_minimal() +
   theme(plot.title = element_text(size=9),
         plot.title.position = "plot") +
@@ -1009,7 +1131,7 @@ plt3_polya <- ggplot(res_basket_features %>%
                         filter(polya_length > 1), 
               aes(x = polya_length)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "grey") +
+  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black") +
   theme_minimal() +
   theme(plot.title = element_text(size=9),
         plot.title.position = "plot") +
@@ -1017,11 +1139,85 @@ plt3_polya <- ggplot(res_basket_features %>%
                  total_basket_nsb_up_size, " + ",
                  total_basket_nsb_down_size, ")"))
 
-plt4_polya <- ggtexttable(all_wilcox_polya2, rows = NULL, theme = ttheme(base_size = 8))
+res_combined_features <- bind_rows(res_basket_features, res_basketless_features, res_total_features) %>%
+  select(gene, common, description, width, strand, pseudo, introns, mean_polya, 
+         mean_polya_vst, polya_length, thalf, syn, change) %>%
+  distinct()
 
-ggarrange(ggarrange(plt2_polya, plt3_polya, plt1_polya, legend = "bottom", common.legend = T, nrow = 1),
-          plt4_polya, nrow = 2)
+plt4_polya <- ggplot(res_combined_features %>% filter(polya_length > 1), aes(x = polya_length)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black") +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  ggtitle(paste0("Basket, Basketless, All (n = ",
+                 basket_nsb_up_size, " + ",
+                 total_nsb_up_size, " + ",
+                 basketless_nsb_up_size, " + ",
+                 total_basket_nsb_up_size, " + ",
+                 total_basketless_nsb_up_size, " + ",
+                 basket_basketless_nsb_up_size, " + ",
+                 total_basketless_basket_nsb_up_size, " +\n",
+                 basket_nsb_down_size, " + ",
+                 total_nsb_down_size, " + ",
+                 basketless_nsb_down_size, " + ",
+                 total_basket_nsb_down_size, " + ",
+                 total_basketless_nsb_down_size, " + ",
+                 basket_basketless_nsb_down_size, " + ",
+                 total_basketless_basket_nsb_down_size, ")"))
 
+plt5_polya <- ggplot(res_combined_features %>%
+                        filter(!gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)) %>%
+                        filter(polya_length > 1), 
+              aes(x = polya_length)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black") +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  ggtitle(paste0("Everything except distinct basket (n = ",
+                 total_nsb_up_size, " + ",
+                 basketless_nsb_up_size, " + ",
+                 total_basket_nsb_up_size, " + ",
+                 total_basketless_nsb_up_size, " + ",
+                 basket_basketless_nsb_up_size, " + ",
+                 total_basketless_basket_nsb_up_size, " +\n",
+                 total_nsb_down_size, " + ",
+                 basketless_nsb_down_size, " + ",
+                 total_basket_nsb_down_size, " + ",
+                 total_basketless_nsb_down_size, " + ",
+                 basket_basketless_nsb_down_size, " + ",
+                 total_basketless_basket_nsb_down_size, ")"))
+
+plt6_polya <- ggplot(res_combined_features %>%
+                        filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene,
+                                           total_basket_nsb_up$gene, total_basket_nsb_down$gene)) %>%
+                        filter(polya_length > 1), 
+              aes(x = polya_length)) +
+  geom_density(alpha = .5, aes(fill = change)) +
+  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black") +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  ggtitle(paste0("Basket, All (n = ",
+                 basket_nsb_up_size, " + ",
+                 total_basket_nsb_up_size, " + ",
+                 basket_nsb_down_size, " + ",
+                 total_basket_nsb_down_size, ")"))
+
+
+plt7_polya <- ggtexttable(all_wilcox_polya2, rows = NULL, theme = ttheme(base_size = 8))
+
+plt8_polya <- ggplot(features %>%
+                       filter(polya_length > 1), 
+                     aes(x = polya_length)) +
+  theme_minimal() +
+  geom_density() +
+  labs(title = "transcriptome distribution", x = "poly(A) tail length")
+
+ggarrange(ggarrange(plt2_polya, plt3_polya, plt1_polya, plt4_polya, plt5_polya, plt6_polya,
+                    legend = "bottom", common.legend = T, nrow = 3, ncol = 2),
+          plt7_polya, nrow = 2, heights = c(4, 1))
 ```
 
 ```{r POLYA_2}
@@ -1158,6 +1354,12 @@ plt3_synth <- ggplot(res_basket_features %>%
   scale_x_log10()
 
 plt4_synth <- ggtexttable(all_wilcox_synth2, rows = NULL, theme = ttheme(base_size = 8))
+
+plt5_synth <- ggplot(features, aes(x = syn)) +
+  theme_minimal() +
+  geom_density() +
+  labs(title = "transcriptome distribution", x = "log10 synthesis rate") +
+  scale_x_log10()
 
 ggarrange(ggarrange(plt2_synth, plt3_synth, plt1_synth, legend = "bottom", common.legend = T, nrow = 1),
           plt4_synth, nrow = 2)
