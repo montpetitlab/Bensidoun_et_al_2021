@@ -216,7 +216,15 @@ pdf("publication_figures/upset_up.pdf", width =4.3, height = 3.5)
 upset_up
 dev.off()
 
+png("publication_figures/upset_up.png", units = "in", res = 300, width =4.3, height = 3.5)
+upset_up
+dev.off()
+
 pdf("publication_figures/upset_down.pdf", width = 4.3, height = 3.5)
+upset_down
+dev.off()
+
+png("publication_figures/upset_down.png", units = "in", res = 300, width = 4.3, height = 3.5)
 upset_down
 dev.off()
 ```
@@ -410,7 +418,15 @@ pdf("publication_figures/shared_set_genes_more_in_basket_up.pdf", width = 2.5, h
 plt1_log2fc
 dev.off()
 
+png("publication_figures/shared_set_genes_more_in_basket_up.png", units = "in", res = 300, width = 2.5, height = 2.5)
+plt1_log2fc
+dev.off()
+
 pdf("publication_figures/shared_set_genes_more_in_basket_down.pdf", width = 2.5, height = 2.5)
+plt3_log2fc
+dev.off()
+
+png("publication_figures/shared_set_genes_more_in_basket_down.png", units = "in", res = 300, width = 2.5, height = 2.5)
 plt3_log2fc
 dev.off()
 ```
@@ -522,38 +538,35 @@ res_total_features <- res_total_features %>%
 ```{r EXPRESSION_by_full_set1, fig.height = 4}
 plt1_exp_scatter <-  ggplot(res_basket_features, 
                             aes(x = log2FoldChange, y = mean_polya_vst, 
-                                color = introns, shape = distinct)) +
+                                color = introns)) +
   labs(title = "Basket (n = 1379 + 1417)", x = "", y = "mean normalized poly(A) counts") +
   xlim(c(-6, 5)) + ylim(c(0, 18.5)) +
   geom_point(alpha = 1/5) +
   theme_minimal() +
   theme(legend.box="vertical") +
-  scale_color_brewer(palette = "Set1", name = "intron", labels = c("does not contain an intron", "contains an intron")) +
-  scale_shape_manual(values = c(16, 1), labels = c("distinctly enriched in dAP", "enriched in other dAP(s)")) 
+  scale_color_brewer(palette = "Set1", name = "intron", labels = c("does not contain an intron", "contains an intron")) 
 
 plt2_exp_scatter <- ggplot(res_basketless_features,
                            aes(x = log2FoldChange, y = mean_polya_vst, 
-                               color = introns, shape = distinct)) +
+                               color = introns)) +
   geom_point(alpha = 1/5) +
   labs(title = "Basketless (n = 484 + 603)", y = "", x = expression(log[2]~fold~change)) + 
   xlim(c(-6, 5)) + ylim(c(0, 18.5)) +
   theme_minimal() +
   theme(legend.box="vertical") +
-  scale_color_brewer(palette = "Set1", name = "intron", labels = c("does not contain an intron", "contains an intron")) +
-  scale_shape_manual(values = c(16, 1), labels = c("distinctly enriched in dAP", "enriched in other dAP(s)")) 
+  scale_color_brewer(palette = "Set1", name = "intron", labels = c("does not contain an intron", "contains an intron"))
 
 
 # SWITCH FROM BASKET TO ALL PORE
 plt3_exp_scatter <- ggplot(res_total_features, 
                            aes(x = log2FoldChange, y = mean_polya_vst, 
-                               color = introns, shape = distinct)) +
+                               color = introns)) +
   labs(title = "All pore (n = 680 + 743)", y = "", x = "") +
   xlim(c(-6, 5)) + ylim(c(0, 18.5)) +
   geom_point(alpha = 1/5) +
   theme_minimal() +
   theme(legend.box="vertical") +
-  scale_color_brewer(palette = "Set1", name = "intron", labels = c("does not contain an intron", "contains an intron")) +
-  scale_shape_manual(values = c(16, 1), name = "enriched in", labels = c("this dAP", "this and other dAP(s)")) 
+  scale_color_brewer(palette = "Set1", name = "intron", labels = c("does not contain an intron", "contains an intron")) 
 
 ggarrange(plt1_exp_scatter, plt2_exp_scatter, plt3_exp_scatter,
           common.legend = T, ncol = 3, legend = "bottom")
@@ -562,6 +575,11 @@ ggarrange(plt1_exp_scatter, plt2_exp_scatter, plt3_exp_scatter,
 
 ```{r save_expression_by_full_set1_as_pdf, include = F, message=F}
 pdf("publication_figures/expression_by_full_set1.pdf", width = 7.2, height = 3.5)
+ggarrange(plt1_exp_scatter, plt2_exp_scatter, plt3_exp_scatter,
+          common.legend = T, ncol = 3, legend = "bottom")
+dev.off()
+
+png("publication_figures/expression_by_full_set1.png", units = "in", res = 300, width = 7.2, height = 3.5)
 ggarrange(plt1_exp_scatter, plt2_exp_scatter, plt3_exp_scatter,
           common.legend = T, ncol = 3, legend = "bottom")
 dev.off()
@@ -575,6 +593,7 @@ basket_exp_density <- ggplot(res_basket_features, aes(x = mean_polya_vst, fill =
   geom_density(alpha = 0.5) +
   facet_wrap(~ifelse(introns == "no", "does not contain an intron", "contains an intron"),
              nrow = 2) +
+  xlim(c(0, 18)) +
   theme_minimal() +
   theme(plot.title = element_text(size = 9),
         plot.title.position = "plot") +
@@ -594,6 +613,7 @@ basketless_exp_density <- ggplot(res_basketless_features,
   theme_minimal() +
   facet_wrap(~ifelse(introns == "no", "does not contain an intron", "contains an intron"),
              nrow = 2) +
+  xlim(c(0, 18)) +
   theme(plot.title = element_text(size = 9),
         plot.title.position = "plot") +
   labs(title = "Basketless (n = 484 + 603)", x = "mean normalized poly(A) counts", y="") +
@@ -611,6 +631,7 @@ total_exp_density <- ggplot(res_total_features,
   theme_minimal() +
   facet_wrap(~ifelse(introns == "no", "does not contain an intron", "contains an intron"),
              nrow = 2) +
+  xlim(c(0, 18)) +
   theme(plot.title = element_text(size = 9),
         plot.title.position = "plot") +
   labs(title = "All pore (n = 680 + 743)", x = "", y = "") +
@@ -633,6 +654,13 @@ ggarrange(basket_exp_density, basketless_exp_density, total_exp_density,
           basket_exp_tbl, basketless_exp_tbl, total_exp_tbl,
           common.legend = T, nrow = 2, ncol = 3, legend = "bottom", heights = c(3, 1))
 dev.off()
+
+png("publication_figures/expression_by_full_set2.png", units = "in", res = 300, width = 10, height = 5)
+ggarrange(basket_exp_density, basketless_exp_density, total_exp_density,
+          basket_exp_tbl, basketless_exp_tbl, total_exp_tbl,
+          common.legend = T, nrow = 2, ncol = 3, legend = "bottom", heights = c(3, 1))
+dev.off()
+
 ```
 
 ## Length of transcripts & length of poly(A) tails (Figure 7D)
@@ -705,10 +733,14 @@ pdf("publication_figures/polya_by_transcript_length.pdf", height = 4.5, width = 
 ggarrange(plt5_polya, plt6_polya, plt7_polya, plt8_polya,
           common.legend = T, legend = "bottom")
 dev.off()
+
+png("publication_figures/polya_by_transcript_length.png", units = "in", res = 300, height = 4.5, width = 5)
+ggarrange(plt5_polya, plt6_polya, plt7_polya, plt8_polya,
+          common.legend = T, legend = "bottom")
+dev.off()
 ```
 
 ## Length of transcripts & length of poly(A) tails (Figure S7B) 
-
 
 ```{r LENGTH_full_sets}
 # wilcox.test() -- wilcoxon rank sum test. Is mean gene length different
@@ -744,16 +776,16 @@ all_wilcox_length <- rbind(igg_wilcox_length,
   dplyr::select(statistic, p.value, method, set)
   
 plt1_length <- ggplot(res_basketless_features, aes(x = width)) +
+  geom_density(data = features, aes(x = width), color ="black", linetype = "dashed", show.legend = F) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black") +
   theme_minimal() +
   labs(title = "Basketless (n = 484 + 603)", x = "") + 
-  xlim(0, 15000) + ylim(0, 0.0011) +
+  #xlim(0, 15000) + ylim(0, 0.0011) +
   scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
 
 plt2_length <- ggplot(res_total_features, aes(x = width)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black") +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black", show.legend = F) +
   theme_minimal() +
   labs(title = "All pore (n = 680 + 743)", x = "")+ 
   xlim(0, 15000) +
@@ -762,7 +794,7 @@ plt2_length <- ggplot(res_total_features, aes(x = width)) +
 
 plt3_length <- ggplot(res_basket_features, aes(x = width)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features, aes(x = width), linetype = "dashed", color ="grey") +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black", show.legend = F) +
   theme_minimal() +
   labs(title = "Basket (n = 1379 + 1417)", x = "transcript length")+ 
   xlim(0, 15000) +
@@ -771,7 +803,7 @@ plt3_length <- ggplot(res_basket_features, aes(x = width)) +
 
 plt4_length <- ggplot(res_igg_features, aes(x = width)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black") +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black", show.legend = F) +
   theme_minimal() +
   labs(title = "IgG control", y = "", x = "")+ 
   xlim(0, 15000) +
@@ -780,7 +812,7 @@ plt4_length <- ggplot(res_igg_features, aes(x = width)) +
 
 plt5_length <- ggplot(res_gbp_features, aes(x = width)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black") +
+  geom_density(data = features, aes(x = width), linetype = "dashed", color ="black", show.legend = F) +
   theme_minimal() +
   labs(title = "GFP nanobody control", y = "", x = "transcript length") + 
   xlim(0, 15000) +
@@ -806,8 +838,11 @@ ggarrange(ggarrange1, ggarrange2, ncol = 2, common.legend = T)
 pdf("publication_figures/transcript_length.pdf", height = 6, width = 6)
 ggarrange(ggarrange1, ggarrange2, ncol = 2, common.legend = T)
 dev.off()
-```
 
+png("publication_figures/transcript_length.png", units = "in", res = 300, height = 6, width = 6)
+ggarrange(ggarrange1, ggarrange2, ncol = 2, common.legend = T)
+dev.off()
+```
 
 ```{r POLYA_full_set, fig.height=3}
 # wilcox.test() -- wilcoxon rank sum test. Is mean polya tail lengths different
@@ -843,31 +878,34 @@ dev.off()
 plt1_polya <- ggplot(res_basketless_features %>% filter(polya_length > 1), 
                      aes(x = polya_length)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black") +
+  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black", show.legend = F) +
+  ylim(c(0, 0.09)) +
   theme_minimal() +
   theme(plot.title = element_text(size=9),
         plot.title.position = "plot") +
-  labs(title = "Basketless", y = "", x = "poly(A) tail length") +
+  labs(title = "Basketless (n = 484 + 603)", y = "", x = "poly(A) tail length") +
   scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
 
 plt2_polya <- ggplot(res_basket_features %>% filter(polya_length > 1), 
               aes(x = polya_length)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black") +
+  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black", show.legend = F) +
+  ylim(c(0, 0.09)) +
   theme_minimal() +
   theme(plot.title = element_text(size=9),
         plot.title.position = "plot") +
-  labs(title = "Basket", x = "") + 
+  labs(title = "Basket (n = 1379 + 1417)", x = "") + 
   scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
 
 plt3_polya <- ggplot(res_total_features %>% filter(polya_length > 1), 
               aes(x = polya_length)) +
   geom_density(alpha = .5, aes(fill = change)) +
-  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black") +
+  geom_density(data = features %>% filter(polya_length > 1), aes(x = polya_length), linetype = "dashed", color = "black", show.legend = F) +
+  ylim(c(0, 0.09)) +
   theme_minimal() +
   theme(plot.title = element_text(size=9),
         plot.title.position = "plot") +
-  labs(title = "All pore", y = "", x = "") +
+  labs(title = "All pore (n = 680 + 743)", y = "", x = "") +
   scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
 
 
@@ -880,7 +918,14 @@ pdf("publication_figures/polya_length.pdf", height = 2.5, width = 5)
 ggarrange(plt2_polya, plt1_polya, plt3_polya,
           legend = "bottom", common.legend = T, ncol = 3)
 dev.off()
+
+png("publication_figures/polya_length.png", units = "in", res = 300, height = 2.5, width = 5)
+ggarrange(plt2_polya, plt1_polya, plt3_polya,
+          legend = "bottom", common.legend = T, ncol = 3)
+dev.off()
 ```
+
+
 ## Regression models
 
 ### basket
@@ -908,5 +953,230 @@ res_total_features$introns2 <- ifelse(res_total_features$introns == "yes", 1, 0)
 total_width_intron <- lm(formula = log2FoldChange ~ width + introns2 + polya_length + mean_polya_vst, data = res_total_features)
 total_width_intron %>% glance() %>% kable() %>% kable_styling()
 total_width_intron %>% tidy() %>% kable() %>% kable_styling()
+```
+
+## Alternatives -- histograms instead of density plots
+
+### VST counts/expression density plots (Figure S7A)
+
+```{r EXPRESSION_by_full_set22, fig.width = 10}
+## Look at distinctly enriched in basket
+basket_exp_histogram <- ggplot() +
+  geom_histogram(data = features, aes(x = mean_polya_vst), alpha = .5, color = "grey", show.legend = F) +
+  geom_histogram(data = res_basket_features, aes(x = mean_polya_vst, fill = change), alpha = 0.5) +
+  facet_wrap(~ifelse(introns == "no", "does not contain an intron", "contains an intron"),
+             nrow = 2) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 9),
+        plot.title.position = "plot") +
+  labs(title = "Basket (n = 1379 + 1417)", x = "") +
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+basket_exp_tbl <- res_basket_features %>%
+  filter(gene %in% c(basket_nsb_up$gene, basket_nsb_down$gene)) %>%
+  group_by(introns) %>% 
+  do(tidy(t.test(mean_polya_vst ~ change, data = .)))  %>%
+  dplyr::select(-estimate1, -estimate2, -parameter, -conf.low, -conf.high, -alternative) %>%
+  ggtexttable(rows = NULL, theme = ttheme(base_size = 6))
+
+basketless_exp_histogram <- ggplot() +
+  geom_histogram(data = features, aes(x = mean_polya_vst), alpha = .5, color = "grey", show.legend = F) +
+  geom_histogram(data = res_basketless_features, aes(x = mean_polya_vst, fill = change), alpha = 0.5) +
+  facet_wrap(~ifelse(introns == "no", "does not contain an intron", "contains an intron"),
+             nrow = 2) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 9),
+        plot.title.position = "plot") +
+  labs(title = "Basketless (n = 484 + 603)", x = "mean normalized poly(A) counts", y="") +
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+basketless_exp_tbl <- res_basketless_features %>% 
+  group_by(introns) %>% 
+  do(tidy(t.test(mean_polya_vst ~ change, data = .))) %>%
+  dplyr::select(-estimate1, -estimate2, -parameter, -conf.low, -conf.high, -alternative) %>%
+  ggtexttable(rows = NULL, theme = ttheme(base_size = 6))
+
+total_exp_histogram <- ggplot() +
+  geom_histogram(data = features, aes(x = mean_polya_vst), alpha = .5, color = "grey", show.legend = F) +
+  geom_histogram(data = res_total_features, aes(x = mean_polya_vst, fill = change), alpha = 0.5) +
+  facet_wrap(~ifelse(introns == "no", "does not contain an intron", "contains an intron"),
+             nrow = 2) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 9),
+        plot.title.position = "plot") +
+  labs(title = "All pore (n = 680 + 743)", x = "", y = "") +
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+total_exp_tbl <- res_total_features %>% 
+  group_by(introns) %>% 
+  do(tidy(t.test(mean_polya_vst ~ change, data = .))) %>%
+  dplyr::select(-estimate1, -estimate2, -parameter, -conf.low, -conf.high, -alternative) %>%
+  ggtexttable(rows = NULL, theme = ttheme(base_size = 6))
+
+ggarrange(basket_exp_histogram, basketless_exp_histogram, total_exp_histogram,
+          basket_exp_tbl, basketless_exp_tbl, total_exp_tbl,
+          common.legend = T, nrow = 2, ncol = 3, legend = "bottom", heights = c(3, 1))
+```
+
+```{r save_expression_by_full_set2_as_pdf2, include = F, message=F}
+pdf("publication_figures/expression_by_full_set2_alt.pdf", width = 10, height = 5)
+ggarrange(basket_exp_histogram, basketless_exp_histogram, total_exp_histogram,
+          basket_exp_tbl, basketless_exp_tbl, total_exp_tbl,
+          common.legend = T, nrow = 2, ncol = 3, legend = "bottom", heights = c(3, 1))
+dev.off()
+
+png("publication_figures/expression_by_full_set2_alt.png", units = "in", res = 300, width = 10, height = 5)
+ggarrange(basket_exp_histogram, basketless_exp_histogram, total_exp_histogram,
+          basket_exp_tbl, basketless_exp_tbl, total_exp_tbl,
+          common.legend = T, nrow = 2, ncol = 3, legend = "bottom", heights = c(3, 1))
+dev.off()
+
+```
+
+
+### Length of transcripts & length of poly(A) tails (Figure S7B) 
+
+```{r LENGTH_full_sets2}
+# wilcox.test() -- wilcoxon rank sum test. Is mean gene length different
+#                  between two groups? (data are not normally distributed)
+
+igg_wilcox_length <- wilcox.test(res_igg_features$width ~ res_igg_features$change) %>%
+  broom::tidy() %>%
+  mutate(set = "IgG ctrl")
+
+gbp_wilcox_length <- wilcox.test(res_gbp_features$width ~ res_gbp_features$change) %>%
+  broom::tidy() %>%
+  mutate(set = "GFP nanobody ctrl")
+
+basket_wilcox_length <- wilcox.test(res_basket_features$width ~ res_basket_features$change) %>%
+  broom::tidy() %>%
+  mutate(set = "basket")
+
+basketless_wilcox_length <- wilcox.test(res_basketless_features$width ~ res_basketless_features$change) %>%
+  broom::tidy() %>%
+  mutate(set = "basketless")
+
+total_wilcox_length <- wilcox.test(res_total_features$width ~ res_total_features$change) %>%
+  broom::tidy() %>%
+  mutate(set = "all pore")
+
+all_wilcox_length <- rbind(igg_wilcox_length, 
+                           gbp_wilcox_length,
+                           basket_wilcox_length,
+                           basketless_wilcox_length, 
+                           total_wilcox_length) %>%
+  as.data.frame() %>%
+  mutate(method = "wilcox.test()") %>%
+  dplyr::select(statistic, p.value, method, set)
+  
+plt1_length <- ggplot(res_basketless_features, aes(x = width)) +
+  geom_histogram(data = features, aes(x = width), color ="grey", show.legend = F, alpha = .5) +
+  geom_histogram(alpha = .5, aes(fill = change)) +
+  theme_minimal() +
+  labs(title = "Basketless (n = 484 + 603)", x = "") + 
+  #xlim(0, 15000) + ylim(0, 0.0011) +
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+plt2_length <- ggplot(res_total_features, aes(x = width)) +
+  geom_histogram(data = features, aes(x = width), color ="grey", show.legend = F, alpha = .5) +
+  geom_histogram(alpha = .5, aes(fill = change)) +
+  theme_minimal() +
+  labs(title = "All pore (n = 680 + 743)", x = "")+ 
+  #xlim(0, 15000) +
+  #ylim(0, 0.0011) +
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+plt3_length <- ggplot(res_basket_features, aes(x = width)) +
+  geom_histogram(data = features, aes(x = width), color ="grey", show.legend = F, alpha = .5) +
+  geom_histogram(alpha = .5, aes(fill = change)) +
+  theme_minimal() +
+  labs(title = "Basket (n = 1379 + 1417)", x = "transcript length")+ 
+  # xlim(0, 15000) +
+  # ylim(0, 0.0011)+
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+plt4_length <- ggplot(res_igg_features, aes(x = width)) +
+  geom_histogram(data = features, aes(x = width), color ="grey", show.legend = F, alpha = .5) +
+  geom_histogram(alpha = .5, aes(fill = change)) +
+  theme_minimal() +
+  labs(title = "IgG control", y = "", x = "")+ 
+  # xlim(0, 15000) +
+  # ylim(0, 0.0011)+
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+plt5_length <- ggplot(res_gbp_features, aes(x = width)) +
+  geom_histogram(data = features, aes(x = width), color ="grey", show.legend = F, alpha = .5) +
+  geom_histogram(alpha = .5, aes(fill = change)) +
+  theme_minimal() +
+  labs(title = "GFP nanobody control", y = "", x = "transcript length") + 
+  # xlim(0, 15000) +
+  # ylim(0, 0.0011)+
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+plt6_length <- ggtexttable(all_wilcox_length, rows = NULL, theme = ttheme(base_size = 7))
+
+ggarrange1 <- ggarrange(plt1_length, plt2_length, plt3_length, 
+                        nrow = 3, legend = "none", common.legend = T)
+ggarrange2 <- ggarrange(plt4_length, plt5_length, plt6_length,
+                        common.legend = T, nrow = 3, legend = "bottom")
+
+ggarrange(ggarrange1, ggarrange2, ncol = 2, common.legend = T)
+```
+
+```{r save_length_as_pdf2, include = F, message = F}
+pdf("publication_figures/transcript_length_alt.pdf", height = 6, width = 6)
+ggarrange(ggarrange1, ggarrange2, ncol = 2, common.legend = T)
+dev.off()
+
+png("publication_figures/transcript_length_alt.png", units = "in", res = 300, height = 6, width = 6)
+ggarrange(ggarrange1, ggarrange2, ncol = 2, common.legend = T)
+dev.off()
+```
+
+```{r POLYA_full_set2, fig.height=3}
+plt1_polya <- ggplot(res_basketless_features %>% filter(polya_length > 1), 
+                     aes(x = polya_length)) +
+  geom_histogram(data = features %>% filter(polya_length > 1), aes(x = polya_length), alpha = .5, color = "grey", show.legend = F) +
+  geom_histogram(alpha = .5, aes(fill = change)) +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  labs(title = "Basketless (n = 484 + 603)", y = "", x = "poly(A) tail length") +
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive")) 
+plt2_polya <- ggplot(res_basket_features %>% filter(polya_length > 1), 
+              aes(x = polya_length)) +
+  geom_histogram(data = features %>% filter(polya_length > 1), aes(x = polya_length), alpha = .5, color = "grey", show.legend = F) +
+  geom_histogram(alpha = .5, aes(fill = change)) +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  labs(title = "Basket (n = 1379 + 1417)", x = "") + 
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+plt3_polya <- ggplot(res_total_features %>% filter(polya_length > 1), 
+              aes(x = polya_length)) +
+  geom_histogram(data = features %>% filter(polya_length > 1), aes(x = polya_length), alpha = .5, color = "grey", show.legend = F) +
+  geom_histogram(alpha = .5, aes(fill = change)) +
+  theme_minimal() +
+  theme(plot.title = element_text(size=9),
+        plot.title.position = "plot") +
+  labs(title = "All pore (n = 680 + 743)", y = "", x = "") +
+  scale_fill_discrete(name = expression(log[2]~fold~change), labels = c("negative", "positive"))
+
+
+ggarrange(plt2_polya, plt1_polya, plt3_polya,
+          legend = "bottom", common.legend = T, ncol = 3)
+```
+
+```{r save_polya_as_pdf2, include = F, message = F}
+pdf("publication_figures/polya_length_alt.pdf", height = 2.5, width = 5)
+ggarrange(plt2_polya, plt1_polya, plt3_polya,
+          legend = "bottom", common.legend = T, ncol = 3)
+dev.off()
+
+png("publication_figures/polya_length_alt.png", units = "in", res = 300, height = 2.5, width = 5)
+ggarrange(plt2_polya, plt1_polya, plt3_polya,
+          legend = "bottom", common.legend = T, ncol = 3)
+dev.off()
 ```
 
